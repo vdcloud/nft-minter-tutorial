@@ -1,8 +1,9 @@
 import { pinJSONToIPFS } from "./pinata.js";
 require("dotenv").config();
 const alchemyKey = process.env.REACT_APP_ALCHEMY_KEY;
+const walletKey = process.env.REACT_APP_WALLET_PRIVATE_KEY;
 const contractABI = require("../contract-abi.json");
-const contractAddress = "0x4C4a07F737Bf57F6632B6CAB089B78f62385aCaE";
+const contractAddress = "0x7237f17222C1886dF037B755EBa18A0A2d91FFA9";
 const { createAlchemyWeb3 } = require("@alch/alchemy-web3");
 const web3 = createAlchemyWeb3(alchemyKey);
 
@@ -85,7 +86,7 @@ export const getCurrentWalletConnected = async () => {
 };
 
 async function loadContract() {
-  return new web3.eth.Contract(contractABI, contractAddress);
+  return new web3.eth.Contract(contractABI.abi, contractAddress);
 }
 
 export const mintNFT = async (url, name, description) => {
@@ -102,6 +103,7 @@ export const mintNFT = async (url, name, description) => {
   metadata.image = url;
   metadata.description = description;
 
+  // upload to pinata
   const pinataResponse = await pinJSONToIPFS(metadata);
   if (!pinataResponse.success) {
     return {
@@ -111,27 +113,34 @@ export const mintNFT = async (url, name, description) => {
   }
   const tokenURI = pinataResponse.pinataUrl;
 
-  window.contract = await new web3.eth.Contract(contractABI, contractAddress);
+  window.contract = await new web3.eth.Contract(contractABI.abi, contractAddress);
 
-  const transactionParameters = {
-    to: contractAddress, // Required except during contract publications.
-    from: window.ethereum.selectedAddress, // must match user's active address.
-    data: window.contract.methods
-      .mintNFT(window.ethereum.selectedAddress, tokenURI)
-      .encodeABI(),
+  // make the transaction
+  const nonce = await web3.eth.getTransactionCount(window.ethereum.selectedAddress, 'latest'); //get latest nonce
+  //the transaction
+  const tx = {
+    'from': window.ethereum.selectedAddress,
+    'to': contractAddress,
+    'nonce': nonce,
+    'gas': 500000,
+    'data': window.contract.methods.mintNFT(window.ethereum.selectedAddress, tokenURI).encodeABI()
   };
 
   try {
-    const txHash = await window.ethereum.request({
-      method: "eth_sendTransaction",
-      params: [transactionParameters],
-    });
-    return {
-      success: true,
-      status:
-        "✅ Check out your transaction on Etherscan: https://ropsten.etherscan.io/tx/" +
-        txHash,
-    };
+    const signedTx = await web3.eth.accounts.signTransaction(tx, walletKey);
+    const txHash = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+    if (txHash.status) {
+      return {
+        success: true,
+        status:
+          "✅ Check out your transaction on Etherscan: https://ropsten.etherscan.io/tx/" + txHash.transactionHash,
+      };
+    } else {
+      return {
+        success: false,
+        status: "😥 Something went wrong: ",
+      };
+    }
   } catch (error) {
     return {
       success: false,
