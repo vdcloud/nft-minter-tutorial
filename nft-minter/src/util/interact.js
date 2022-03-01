@@ -32,7 +32,7 @@ export const connectWallet = async () => {
           <p>
             {" "}
             🦊{" "}
-            <a target="_blank" href={`https://metamask.io/download.html`}>
+            <a target="_blank" rel="noreferrer" href={`https://metamask.io/download.html`}>
               You must install Metamask, a virtual Ethereum wallet, in your
               browser.
             </a>
@@ -74,7 +74,7 @@ export const getCurrentWalletConnected = async () => {
           <p>
             {" "}
             🦊{" "}
-            <a target="_blank" href={`https://metamask.io/download.html`}>
+            <a target="_blank" rel="noreferrer" href={`https://metamask.io/download.html`}>
               You must install Metamask, a virtual Ethereum wallet, in your
               browser.
             </a>
@@ -85,12 +85,8 @@ export const getCurrentWalletConnected = async () => {
   }
 };
 
-async function loadContract() {
-  return new web3.eth.Contract(contractABI.abi, contractAddress);
-}
-
 export const mintNFT = async (url, name, description) => {
-  if (url.trim() == "" || name.trim() == "" || description.trim() == "") {
+  if (url.trim() === "" || name.trim() === "" || description.trim() === "") {
     return {
       success: false,
       status: "❗Please make sure all fields are completed before minting.",
@@ -98,10 +94,11 @@ export const mintNFT = async (url, name, description) => {
   }
 
   //make metadata
-  const metadata = new Object();
-  metadata.name = name;
-  metadata.image = url;
-  metadata.description = description;
+  const metadata = {
+    name: name,
+    image: url,
+    description: description,
+  }
 
   // upload to pinata
   const pinataResponse = await pinJSONToIPFS(metadata);
